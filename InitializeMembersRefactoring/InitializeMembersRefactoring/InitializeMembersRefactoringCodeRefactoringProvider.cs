@@ -26,14 +26,12 @@ namespace InitializeMembersRefactoring
             var node = root.FindNode(context.Span);
 
             // Only offer a refactoring if the selected node is an initializer expression. 
-            var objCreationSyntax = node as InitializerExpressionSyntax;
-            if (objCreationSyntax is null)
+            if (!(node is InitializerExpressionSyntax objCreationSyntax))
             {
-                return; 
+                return;
             }
 
-            var creat = node.Ancestors().FirstOrDefault(anc => anc is ObjectCreationExpressionSyntax) as ObjectCreationExpressionSyntax;
-            if (creat is null) { return; }
+            if (!(node.Ancestors().FirstOrDefault(anc => anc is ObjectCreationExpressionSyntax) is ObjectCreationExpressionSyntax creat)) { return; }
 
             // For any type declaration node, create a code action to reverse the identifier text.
             var action = CodeAction.Create("Initialize members", c => InitializeMembersAsync(context.Document, creat, c));
@@ -48,9 +46,8 @@ namespace InitializeMembersRefactoring
             var local = creat.Ancestors().OfType<LocalDeclarationStatementSyntax>().First();
             var sm = await document.GetSemanticModelAsync();
             var bbb = sm.GetTypeInfo(type, cancellationToken);
-            var ts = sm.GetSymbolInfo(type, cancellationToken).Symbol as INamedTypeSymbol;
 
-            if (ts is null)
+            if (!(sm.GetSymbolInfo(type, cancellationToken).Symbol is INamedTypeSymbol ts))
                 return document;
 
             IEnumerable<IPropertySymbol> properties = GetPropertySymbols(ts);
@@ -75,7 +72,7 @@ namespace InitializeMembersRefactoring
 
                 var separator = SyntaxFactory.Token(SyntaxKind.CommaToken);
                 SyntaxReference syntaxReference = property.DeclaringSyntaxReferences.FirstOrDefault();
-                if ((syntaxReference != null))
+                if (syntaxReference != null)
                 {
                     var declNode = await syntaxReference.GetSyntaxAsync(cancellationToken);
                     if (declNode != null && declNode.ChildTokens().Any(token => token.IsKind(SyntaxKind.RequiredKeyword)))
@@ -96,7 +93,8 @@ namespace InitializeMembersRefactoring
         {
             foreach (var symbol in typeSymbol.GetMembers())
             {
-                if (symbol is IPropertySymbol propertySymbol && propertySymbol.SetMethod != null && !propertySymbol.IsReadOnly)
+                if (symbol is IPropertySymbol propertySymbol && propertySymbol.SetMethod != null && !propertySymbol.IsReadOnly && 
+                    (propertySymbol.SetMethod.DeclaredAccessibility == Accessibility.Public || propertySymbol.SetMethod.IsInitOnly))
                 {
                     yield return propertySymbol;
                 }
